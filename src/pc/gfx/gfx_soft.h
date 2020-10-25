@@ -4,6 +4,7 @@
 #include "gfx_rendering_api.h"
 
 #define CONVERT
+#define DIRECT_SDL
 
 extern struct GfxRenderingAPI gfx_soft_api;
 #ifdef CONVERT

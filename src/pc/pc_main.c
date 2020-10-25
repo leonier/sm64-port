@@ -190,21 +190,23 @@ void main_func(void) {
             audio_api = &audio_wasapi;
         }
 #endif
+/*
 #if HAVE_PULSE_AUDIO
         if (audio_api == NULL && audio_pulse.init()) {
             audio_api = &audio_pulse;
         }
 #endif
+*/
+/*
 #if HAVE_ALSA
         if (audio_api == NULL && audio_alsa.init()) {
             audio_api = &audio_alsa;
         }
 #endif
-#ifdef TARGET_WEB
+*/
         if (audio_api == NULL && audio_sdl.init()) {
             audio_api = &audio_sdl;
         }
-#endif
 #ifdef TARGET_DOS
         if (audio_api == NULL && audio_sb.init()) {
             audio_api = &audio_sb;

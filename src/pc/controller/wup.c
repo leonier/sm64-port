@@ -1,4 +1,5 @@
-#if !defined(__MINGW32__) && !defined(__BSD__) && !defined(TARGET_WEB) && !defined(TARGET_DOS)
+//#if !defined(__MINGW32__) && !defined(__BSD__) && !defined(TARGET_WEB) && !defined(TARGET_DOS) && !defined(NOWUP)
+#if 0
 // See LICENSE for license
 
 #define _XOPEN_SOURCE 600

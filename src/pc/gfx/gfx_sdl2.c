@@ -34,6 +34,10 @@
 # define FRAMERATE 30
 #endif
 
+#ifndef SDL_TRIPLEBUF
+#define SDL_TRIPLEBUF SDL_DOUBLEBUF
+#endif
+
 #ifdef ENABLE_SOFTRAST
 #define GFX_API_NAME "SDL1.2 - Software"
 #include "gfx_soft.h"
@@ -194,8 +198,6 @@ static void gfx_sdl_init(const char *game_name, bool start_in_fullscreen) {
     char title[512];
     sprintf(title, "%s (%s)", game_name, GFX_API_NAME);
 
-	configScreenWidth = 320;
-	configScreenHeight = 240;
     window_width = configScreenWidth;
     window_height = configScreenHeight;
 #ifdef ENABLE_SOFTRAST
@@ -203,7 +205,12 @@ static void gfx_sdl_init(const char *game_name, bool start_in_fullscreen) {
 #ifdef CONVERT
 	sdl_screen = SDL_SetVideoMode(window_width, window_height, 16, SDL_HWSURFACE | SDL_DOUBLEBUF);
 #else
-	sdl_screen = SDL_SetVideoMode(window_width, window_height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
+#ifdef DIRECT_SDL
+	sdl_screen = SDL_SetVideoMode(window_width, window_height, 0, SDL_HWSURFACE | SDL_TRIPLEBUF);
+#else
+	texture = SDL_SetVideoMode(window_width, window_height, 16, SDL_HWSURFACE | SDL_TRIPLEBUF);
+	sdl_screen = SDL_CreateRGBSurface(SDL_HWSURFACE, window_width, window_height, 32, 0,0,0,0);
+#endif
 #endif
 	//texture = SDL_CreateRGBSurface(SDL_HWSURFACE, window_width, window_height, 32, 0,0,0,0);
 
@@ -294,6 +301,7 @@ static int translate_scancode(int scancode) {
 
 static void gfx_sdl_onkeydown(int scancode) {
     int key = translate_scancode(scancode);
+    printf("key %d\n", key);
     if (on_key_down_callback != NULL) {
         on_key_down_callback(key);
     }
@@ -313,10 +321,10 @@ static void gfx_sdl_handle_events(void) {
 #ifndef TARGET_WEB
             // Scancodes are broken in Emscripten SDL2: https://bugzilla.libsdl.org/show_bug.cgi?id=3259
             case SDL_KEYDOWN:
-                if (event.key.keysym.sym == SDLK_F10) {
-                    set_fullscreen(!fullscreen_state, true);
-                    break;
-                }
+				if (event.key.keysym.sym == SDLK_ESCAPE)
+				{
+					game_exit();
+				}
                 gfx_sdl_onkeydown(event.key.keysym.sym);
                 break;
             case SDL_KEYUP:
@@ -350,9 +358,22 @@ static void gfx_sdl_swap_buffers_begin(void) {
     }
 
 #ifdef ENABLE_SOFTRAST
-	memcpy(sdl_screen->pixels, (const void *)gfx_output, (window_width*window_height)*sdl_screen->format->BytesPerPixel);
-	//SDL_BlitSurface(texture, NULL, sdl_screen, NULL);
+#ifdef DIRECT_SDL
+	if (SDL_LockSurface(sdl_screen) == 0)
+	{
+		memmove(sdl_screen->pixels, (const void *)gfx_output, (window_width*window_height)*sdl_screen->format->BytesPerPixel);
+		SDL_UnlockSurface(sdl_screen);
+	}
 	SDL_Flip(sdl_screen);
+#else
+	if (SDL_LockSurface(sdl_screen) == 0)
+	{
+		memmove(sdl_screen->pixels, (const void *)gfx_output, (window_width*window_height)*sdl_screen->format->BytesPerPixel);
+		SDL_UnlockSurface(sdl_screen);
+	}
+	SDL_BlitSurface(sdl_screen, NULL, texture, NULL);
+	SDL_Flip(texture);
+#endif
    /* SDL_UpdateTexture(texture, NULL, (const void *)gfx_output, 4 * configScreenWidth);
     SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, texture, NULL, NULL);

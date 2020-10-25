@@ -36,6 +36,12 @@ ENABLE_OPENGL ?= 0
 ENABLE_OPENGL_LEGACY ?= 0
 # Software rasterizer
 ENABLE_SOFTRAST ?= 1
+
+NOWUP = NOWUP
+
+DEBUG = 0
+
+TARGET_RS97 ?= 1
 # Pick GL backend for DOS: osmesa, dmesa
 DOS_GL := osmesa
 
@@ -143,7 +149,7 @@ endif
 endif
 
 TARGET := sm64.$(VERSION)
-VERSION_CFLAGS := -D$(VERSION_DEF)
+VERSION_CFLAGS := -D$(VERSION_DEF) -D$(NOWUP)
 VERSION_ASFLAGS := --defsym $(VERSION_DEF)=1
 
 # Microcode
@@ -300,7 +306,7 @@ endif
 
   # Use a default opt flag for gcc
   ifeq ($(COMPILER),gcc)
-    OPT_FLAGS := -O2
+    OPT_FLAGS := -O3
   endif
 
 else
@@ -504,8 +510,28 @@ ifeq ($(TARGET_WINDOWS),1)
   PLATFORM_LDFLAGS := -lm -lxinput9_1_0 -lole32 -no-pie -mwindows
 endif
 ifeq ($(TARGET_LINUX),1)
-  PLATFORM_CFLAGS  := -DTARGET_LINUX `pkg-config --cflags libusb-1.0`
-  PLATFORM_LDFLAGS := -lm -lpthread `pkg-config --libs libusb-1.0` -lasound -lpulse -no-pie
+ifeq ($(TARGET_RS97),1)
+  OD_TOOLCHAIN ?= /opt/rs97-toolchain/
+  CC := $(OD_TOOLCHAIN)bin/mipsel-linux-gcc
+  CXX := $(OD_TOOLCHAIN)bin/mipsel-linux-g++
+  LD := $(OD_TOOLCHAIN)bin/mipsel-linux-gcc
+  MARCH := -march=mips32 -mtune=mips32  -Ofast -fdata-sections -ffunction-sections -mno-fp-exceptions -mno-check-zero-division -mframe-header-opt -fsingle-precision-constant -fno-common -mxgot -mips32 -mno-mips16 -fno-PIC -mno-abicalls -flto
+endif
+ifeq ($(TARGET_BITTBOY),1)
+  OD_TOOLCHAIN ?= /opt/bittboy-toolchain/
+  CC := $(OD_TOOLCHAIN)bin/arm-linux-gcc
+  CXX := $(OD_TOOLCHAIN)bin/arm-linux-g++
+  LD := $(OD_TOOLCHAIN)bin/arm-linux-gcc
+endif
+ifeq ($(TARGET_OD),1)
+  OD_TOOLCHAIN ?= /opt/gcw0-toolchain/
+  CC := $(OD_TOOLCHAIN)bin/mipsel-linux-gcc
+  CXX := $(OD_TOOLCHAIN)bin/mipsel-linux-g++
+  LD := $(OD_TOOLCHAIN)bin/mipsel-linux-gcc
+  MARCH := -march=mips32r2 -mtune=mips32r2
+endif
+  PLATFORM_CFLAGS  := -DTARGET_LINUX
+  PLATFORM_LDFLAGS := -lm -lpthread -no-pie -flto
 endif
 ifeq ($(TARGET_WEB),1)
   PLATFORM_CFLAGS  := -DTARGET_WEB
@@ -546,8 +572,7 @@ ifneq ($(ENABLE_OPENGL)$(ENABLE_OPENGL_LEGACY),00)
     GFX_LDFLAGS += $(shell sdl-config --libs) -lglew32 -lopengl32 -lwinmm -limm32 -lversion -loleaut32 -lsetupapi
   endif
   ifeq ($(TARGET_LINUX),1)
-    GFX_CFLAGS  += $(shell sdl-config --cflags)
-    GFX_LDFLAGS += -lGL $(shell sdl-config --libs) -lX11 -lXrandr
+
   endif
   ifeq ($(TARGET_WEB),1)
     GFX_CFLAGS  += -s USE_SDL=2
@@ -570,8 +595,19 @@ else ifeq ($(ENABLE_SOFTRAST),1)
     GFX_LDFLAGS += $(shell sdl-config --libs)
   endif
   ifeq ($(TARGET_LINUX),1)
-    GFX_CFLAGS  += $(shell sdl-config --cflags)
-    GFX_LDFLAGS += $(shell sdl-config --libs)
+	ifeq ($(TARGET_RS97),1)
+	  GFX_CFLAGS  += $(shell /opt/rs97-toolchain/mipsel-buildroot-linux-musl/sysroot/usr/bin/sdl-config --cflags)
+	  GFX_LDFLAGS += $(shell /opt/rs97-toolchain/mipsel-buildroot-linux-musl/sysroot/usr/bin/sdl-config --libs)
+	else ifeq ($(TARGET_BITTBOY),1)
+	  GFX_CFLAGS  += $(shell /opt/bittboy-toolchain/arm-buildroot-linux-musleabi/sysroot/usr/bin/sdl-config --cflags)
+	  GFX_LDFLAGS += $(shell /opt/bittboy-toolchain/arm-buildroot-linux-musleabi/sysroot/usr/bin/sdl-config --libs)
+	else ifeq ($(TARGET_OD),1)
+	  GFX_CFLAGS  += $(shell /opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/bin/sdl-config --cflags)
+	  GFX_LDFLAGS += $(shell /opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/bin/sdl-config --libs)
+	else
+	  GFX_CFLAGS  += $(shell sdl-config --cflags)
+	  GFX_LDFLAGS += $(shell sdl-config --libs)
+	endif
   endif
   ifeq ($(TARGET_WEB),1)
     GFX_CFLAGS  += -s USE_SDL=2
@@ -582,7 +618,7 @@ endif
 GFX_CFLAGS += -DWIDESCREEN
 
 ifeq ($(TARGET_DOS),0)
-  MARCH := -march=native
+#MARCH := -march=native
 endif
 
 CC_CHECK := $(CC) -fsyntax-only -fsigned-char $(INCLUDE_CFLAGS) -Wall -Wextra -Wno-format-security -D_LANGUAGE_C $(VERSION_CFLAGS) $(MATCH_CFLAGS) $(PLATFORM_CFLAGS) $(GFX_CFLAGS) $(GRUCODE_CFLAGS)

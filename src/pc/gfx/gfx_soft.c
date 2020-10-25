@@ -421,12 +421,22 @@ static inline uint16_t Color32Reverse(uint32_t x)
     uint8_t red   = ((x >> 0)  & 0xFF);
     uint8_t green = ((x >> 8)  & 0xFF);
     uint8_t blue  = ((x >> 16)  & 0xFF);
-
     uint16_t b = (blue >> 3) & 0x1f;
     uint16_t g = ((green >> 2) & 0x3f) << 5;
     uint16_t r = ((red >> 3) & 0x1f) << 11;
-
     return (uint16_t) (r | g | b);
+    
+   /* uint32_t s = __builtin_bswap32(x) >> 8 | 0xff000000;*/
+	//unsigned alpha = s >> 27; /* downscale alpha to 5 bits */
+	/* FIXME: Here we special-case opaque alpha since the
+	compositioning used (>>8 instead of /255) doesn't handle
+	it correctly. Also special-case alpha=0 for speed?
+	Benchmark this! */
+	/*if(alpha == (SDL_ALPHA_OPAQUE >> 3)) return (uint16_t) ((s >> 8 & 0xf800) + (s >> 5 & 0x7e0) + (s >> 3 & 0x1f));
+	return s = ((s & 0xfc00) << 11) + (s >> 8 & 0xf800) + (s >> 3 & 0x1f);*/
+    
+    //return (uint16_t) ((s >> 8 & 0xf800) + (s >> 5 & 0x7e0) + (s >> 3 & 0x1f));
+    
 	/*extern SDL_Surface* sdl_screen;
 	uint8_t a		= ((x >> 24) & 0xFF);
     uint8_t red		= ((x >> 0)  & 0xFF);

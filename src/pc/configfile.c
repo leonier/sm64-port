@@ -7,6 +7,7 @@
 #include <ctype.h>
 
 #include "configfile.h"
+#include "fsutils.h"
 
 #define ARRAY_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
 
@@ -31,11 +32,11 @@ struct ConfigOption {
  */
 bool configFullscreen            = false;
 bool configDrawSky               = true;
-bool configFiltering             = true;
-bool configEnableSound           = false;
-bool configEnableFog             = true;
-unsigned int configScreenWidth   = 640;
-unsigned int configScreenHeight  = 480;
+bool configFiltering             = false;
+bool configEnableSound           = true;
+bool configEnableFog             = false;
+unsigned int configScreenWidth   = 80;
+unsigned int configScreenHeight  = 60;
 unsigned int configFrameskip     = 30;
 // Keyboard mappings (scancode values)
 #ifdef TARGET_DOS
@@ -55,6 +56,21 @@ unsigned int configKeyStickLeft  =  1;
 unsigned int configKeyStickRight =  4;
 #else
 // DInput scancodes
+#if defined(TARGET_LINUX)
+unsigned int configKeyA          = 29;
+unsigned int configKeyB          = 56;
+unsigned int configKeyStart      = 28;
+unsigned int configKeyR          = 14;
+unsigned int configKeyZ          = 15;
+unsigned int configKeyCUp        = 0x148;
+unsigned int configKeyCDown      = 0x150;
+unsigned int configKeyCLeft      = 0x2A;
+unsigned int configKeyCRight     = 0x39;
+unsigned int configKeyStickUp    = 584;
+unsigned int configKeyStickDown  = 592;
+unsigned int configKeyStickLeft  = 587;
+unsigned int configKeyStickRight = 589;
+#else
 unsigned int configKeyA          = 0x26;
 unsigned int configKeyB          = 0x33;
 unsigned int configKeyStart      = 0x39;
@@ -68,6 +84,7 @@ unsigned int configKeyStickUp    = 0x11;
 unsigned int configKeyStickDown  = 0x1F;
 unsigned int configKeyStickLeft  = 0x1E;
 unsigned int configKeyStickRight = 0x20;
+#endif
 #endif
 
 static const struct ConfigOption options[] = {
@@ -176,7 +193,7 @@ void configfile_load(const char *filename) {
 
     printf("Loading configuration from '%s'\n", filename);
 
-    file = fopen(filename, "r");
+    file = fopen_home(filename, "r");
     if (file == NULL) {
         // Create a new config file and save defaults
         printf("Config file '%s' not found. Creating it.\n", filename);
@@ -239,11 +256,13 @@ void configfile_save(const char *filename) {
 
     printf("Saving configuration to '%s'\n", filename);
 
-    file = fopen(filename, "w");
+    file = fopen_home(filename, "w");
     if (file == NULL) {
         // error
+        printf("Could not save\n");
         return;
     }
+    printf("Saved !\n");
 
     for (unsigned int i = 0; i < ARRAY_LEN(options); i++) {
         const struct ConfigOption *option = &options[i];

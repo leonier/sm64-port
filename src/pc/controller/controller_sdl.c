@@ -14,10 +14,10 @@
 #define DEADZONE 4960
 
 static bool init_ok;
-static SDL_GameController *sdl_cntrl;
+static SDL_Joystick *sdl_cntrl;
 
 static void controller_sdl_init(void) {
-    if (SDL_Init(SDL_INIT_GAMECONTROLLER) != 0) {
+    if (SDL_Init(SDL_INIT_JOYSTICK) != 0) {
         fprintf(stderr, "SDL init error: %s\n", SDL_GetError());
         return;
     }
@@ -25,12 +25,16 @@ static void controller_sdl_init(void) {
     init_ok = true;
 }
 
+int16_t leftx, lefty, rightx, righty, ltrig, rtrig;
+
 static void controller_sdl_read(OSContPad *pad) {
     if (!init_ok) {
         return;
     }
+    
+    /* We'll put OD code here - gameblabla */
 
-    SDL_GameControllerUpdate();
+    /*SDL_GameControllerUpdate();
 
     if (sdl_cntrl != NULL && !SDL_GameControllerGetAttached(sdl_cntrl)) {
         SDL_GameControllerClose(sdl_cntrl);
@@ -62,7 +66,7 @@ static void controller_sdl_read(OSContPad *pad) {
     int16_t righty = SDL_GameControllerGetAxis(sdl_cntrl, SDL_CONTROLLER_AXIS_RIGHTY);
 
     int16_t ltrig = SDL_GameControllerGetAxis(sdl_cntrl, SDL_CONTROLLER_AXIS_TRIGGERLEFT);
-    int16_t rtrig = SDL_GameControllerGetAxis(sdl_cntrl, SDL_CONTROLLER_AXIS_TRIGGERRIGHT);
+    int16_t rtrig = SDL_GameControllerGetAxis(sdl_cntrl, SDL_CONTROLLER_AXIS_TRIGGERRIGHT);*/
 
 #ifdef TARGET_WEB
     // Firefox has a bug: https://bugzilla.mozilla.org/show_bug.cgi?id=1606562

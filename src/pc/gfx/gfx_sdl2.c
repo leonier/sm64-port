@@ -1,6 +1,6 @@
 #include "../compat.h"
 
-#if !defined(__linux__) && !defined(__BSD__) && !defined(TARGET_DOS) && (defined(ENABLE_OPENGL) || defined(ENABLE_OPENGL_LEGACY) || defined(ENABLE_SOFTRAST))
+#if !defined(__BSD__) && !defined(TARGET_DOS) && (defined(ENABLE_OPENGL) || defined(ENABLE_OPENGL_LEGACY) || defined(ENABLE_SOFTRAST))
 
 #ifdef __MINGW32__
 #define FOR_WINDOWS 1
@@ -14,13 +14,13 @@
 #define GL_GLEXT_PROTOTYPES 1
 #include "SDL_opengl.h"
 #else
-#include <SDL2/SDL.h>
-#define GL_GLEXT_PROTOTYPES 1
+#include <SDL/SDL.h>
+/*#define GL_GLEXT_PROTOTYPES 1
 #ifdef ENABLE_OPENGL_LEGACY
 #include <SDL2/SDL_opengl.h>
 #else
 #include <SDL2/SDL_opengles2.h>
-#endif
+#endif*/
 #endif
 
 #include "../common.h"
@@ -35,16 +35,19 @@
 #endif
 
 #ifdef ENABLE_SOFTRAST
-#define GFX_API_NAME "SDL2 - Software"
+#define GFX_API_NAME "SDL1.2 - Software"
 #include "gfx_soft.h"
-static SDL_Renderer *renderer;
+//static SDL_Renderer *renderer;
+SDL_Surface *sdl_screen = NULL;
+SDL_PixelFormat sdl_screen_bgr;
 static SDL_Surface *buffer = NULL;
-static SDL_Texture *texture = NULL;
+static SDL_Surface *texture = NULL;
+//static SDL_Texture *texture = NULL;
 #else
 #define GFX_API_NAME "SDL2 - OpenGL"
 #endif
 
-static SDL_Window *wnd;
+//static SDL_Window *wnd;
 static int inverted_scancode_table[512];
 static int vsync_enabled = 0;
 static unsigned int window_width = DESIRED_SCREEN_WIDTH;
@@ -62,59 +65,64 @@ const int frame_time = 1000 / FRAMERATE;
 static int f_frames = 0;
 static double f_time = 0.0;
 
-const SDL_Scancode windows_scancode_table[] =
+
+const SDLKey windows_scancode_table[] =
 {
     /*	0						1							2							3							4						5							6							7 */
     /*	8						9							A							B							C						D							E							F */
-    SDL_SCANCODE_UNKNOWN,		SDL_SCANCODE_ESCAPE,		SDL_SCANCODE_1,				SDL_SCANCODE_2,				SDL_SCANCODE_3,			SDL_SCANCODE_4,				SDL_SCANCODE_5,				SDL_SCANCODE_6,			/* 0 */
-    SDL_SCANCODE_7,				SDL_SCANCODE_8,				SDL_SCANCODE_9,				SDL_SCANCODE_0,				SDL_SCANCODE_MINUS,		SDL_SCANCODE_EQUALS,		SDL_SCANCODE_BACKSPACE,		SDL_SCANCODE_TAB,		/* 0 */
+    SDLK_UNKNOWN,		SDLK_ESCAPE,		SDLK_1,				SDLK_2,				SDLK_3,			SDLK_4,				SDLK_5,				SDLK_6,			/* 0 */
+    SDLK_7,				SDLK_8,				SDLK_9,				SDLK_0,				SDLK_MINUS,		SDLK_EQUALS,		SDLK_BACKSPACE,		SDLK_TAB,		/* 0 */
 
-    SDL_SCANCODE_Q,				SDL_SCANCODE_W,				SDL_SCANCODE_E,				SDL_SCANCODE_R,				SDL_SCANCODE_T,			SDL_SCANCODE_Y,				SDL_SCANCODE_U,				SDL_SCANCODE_I,			/* 1 */
-    SDL_SCANCODE_O,				SDL_SCANCODE_P,				SDL_SCANCODE_LEFTBRACKET,	SDL_SCANCODE_RIGHTBRACKET,	SDL_SCANCODE_RETURN,	SDL_SCANCODE_LCTRL,			SDL_SCANCODE_A,				SDL_SCANCODE_S,			/* 1 */
+    SDLK_q,				SDLK_w,				SDLK_e,				SDLK_r,				SDLK_t,			SDLK_y,				SDLK_u,				SDLK_i,			/* 1 */
+    SDLK_o,				SDLK_p,				SDLK_LEFTBRACKET,	SDLK_RIGHTBRACKET,	SDLK_RETURN,	SDLK_LCTRL,			SDLK_a,				SDLK_s,			/* 1 */
 
-    SDL_SCANCODE_D,				SDL_SCANCODE_F,				SDL_SCANCODE_G,				SDL_SCANCODE_H,				SDL_SCANCODE_J,			SDL_SCANCODE_K,				SDL_SCANCODE_L,				SDL_SCANCODE_SEMICOLON,	/* 2 */
-    SDL_SCANCODE_APOSTROPHE,	SDL_SCANCODE_GRAVE,			SDL_SCANCODE_LSHIFT,		SDL_SCANCODE_BACKSLASH,		SDL_SCANCODE_Z,			SDL_SCANCODE_X,				SDL_SCANCODE_C,				SDL_SCANCODE_V,			/* 2 */
+    SDLK_d,				SDLK_f,				SDLK_g,				SDLK_h,				SDLK_j,			SDLK_k,				SDLK_l,				SDLK_SEMICOLON,	/* 2 */
+    SDLK_UNKNOWN,	SDLK_UNKNOWN,			SDLK_LSHIFT,		SDLK_BACKSLASH,		SDLK_z,			SDLK_x,				SDLK_c,				SDLK_v,			/* 2 */
 
-    SDL_SCANCODE_B,				SDL_SCANCODE_N,				SDL_SCANCODE_M,				SDL_SCANCODE_COMMA,			SDL_SCANCODE_PERIOD,	SDL_SCANCODE_SLASH,			SDL_SCANCODE_RSHIFT,		SDL_SCANCODE_PRINTSCREEN,/* 3 */
-    SDL_SCANCODE_LALT,			SDL_SCANCODE_SPACE,			SDL_SCANCODE_CAPSLOCK,		SDL_SCANCODE_F1,			SDL_SCANCODE_F2,		SDL_SCANCODE_F3,			SDL_SCANCODE_F4,			SDL_SCANCODE_F5,		/* 3 */
+    SDLK_b,				SDLK_n,				SDLK_m,				SDLK_COMMA,			SDLK_PERIOD,	SDLK_SLASH,			SDLK_RSHIFT,		SDLK_PRINT,/* 3 */
+    SDLK_LALT,			SDLK_SPACE,			SDLK_CAPSLOCK,		SDLK_F1,			SDLK_F2,		SDLK_F3,			SDLK_F4,			SDLK_F5,		/* 3 */
 
-    SDL_SCANCODE_F6,			SDL_SCANCODE_F7,			SDL_SCANCODE_F8,			SDL_SCANCODE_F9,			SDL_SCANCODE_F10,		SDL_SCANCODE_NUMLOCKCLEAR,	SDL_SCANCODE_SCROLLLOCK,	SDL_SCANCODE_HOME,		/* 4 */
-    SDL_SCANCODE_UP,			SDL_SCANCODE_PAGEUP,		SDL_SCANCODE_KP_MINUS,		SDL_SCANCODE_LEFT,			SDL_SCANCODE_KP_5,		SDL_SCANCODE_RIGHT,			SDL_SCANCODE_KP_PLUS,		SDL_SCANCODE_END,		/* 4 */
+    SDLK_F6,			SDLK_F7,			SDLK_F8,			SDLK_F9,			SDLK_F10,		SDLK_NUMLOCK,	SDLK_SCROLLOCK,	SDLK_HOME,		/* 4 */
+    SDLK_UP,			SDLK_PAGEUP,		SDLK_KP_MINUS,		SDLK_LEFT,			SDLK_KP5,		SDLK_RIGHT,			SDLK_KP_PLUS,		SDLK_END,		/* 4 */
 
-    SDL_SCANCODE_DOWN,			SDL_SCANCODE_PAGEDOWN,		SDL_SCANCODE_INSERT,		SDL_SCANCODE_DELETE,		SDL_SCANCODE_UNKNOWN,	SDL_SCANCODE_UNKNOWN,		SDL_SCANCODE_NONUSBACKSLASH,SDL_SCANCODE_F11,		/* 5 */
-    SDL_SCANCODE_F12,			SDL_SCANCODE_PAUSE,			SDL_SCANCODE_UNKNOWN,		SDL_SCANCODE_LGUI,			SDL_SCANCODE_RGUI,		SDL_SCANCODE_APPLICATION,	SDL_SCANCODE_UNKNOWN,		SDL_SCANCODE_UNKNOWN,	/* 5 */
+    SDLK_DOWN,			SDLK_PAGEDOWN,		SDLK_INSERT,		SDLK_DELETE,		SDLK_UNKNOWN,	SDLK_UNKNOWN,		SDLK_BACKSLASH,SDLK_F11,		/* 5 */
+    SDLK_F12,			SDLK_PAUSE,			SDLK_UNKNOWN,		SDLK_UNKNOWN,			SDLK_UNKNOWN,		SDLK_UNKNOWN,	SDLK_UNKNOWN,		SDLK_UNKNOWN,	/* 5 */
 
-    SDL_SCANCODE_UNKNOWN,		SDL_SCANCODE_UNKNOWN,		SDL_SCANCODE_UNKNOWN,		SDL_SCANCODE_UNKNOWN,		SDL_SCANCODE_F13,		SDL_SCANCODE_F14,			SDL_SCANCODE_F15,			SDL_SCANCODE_F16,		/* 6 */
-    SDL_SCANCODE_F17,			SDL_SCANCODE_F18,			SDL_SCANCODE_F19,			SDL_SCANCODE_UNKNOWN,		SDL_SCANCODE_UNKNOWN,	SDL_SCANCODE_UNKNOWN,		SDL_SCANCODE_UNKNOWN,		SDL_SCANCODE_UNKNOWN,	/* 6 */
+    SDLK_UNKNOWN,		SDLK_UNKNOWN,		SDLK_UNKNOWN,		SDLK_UNKNOWN,		SDLK_F13,		SDLK_F14,			SDLK_F15,			SDLK_UNKNOWN,		/* 6 */
+    SDLK_UNKNOWN,			SDLK_UNKNOWN,			SDLK_UNKNOWN,			SDLK_UNKNOWN,		SDLK_UNKNOWN,	SDLK_UNKNOWN,		SDLK_UNKNOWN,		SDLK_UNKNOWN,	/* 6 */
 
-    SDL_SCANCODE_INTERNATIONAL2,		SDL_SCANCODE_UNKNOWN,		SDL_SCANCODE_UNKNOWN,		SDL_SCANCODE_INTERNATIONAL1,		SDL_SCANCODE_UNKNOWN,	SDL_SCANCODE_UNKNOWN,		SDL_SCANCODE_UNKNOWN,		SDL_SCANCODE_UNKNOWN,	/* 7 */
-    SDL_SCANCODE_UNKNOWN,		SDL_SCANCODE_INTERNATIONAL4,		SDL_SCANCODE_UNKNOWN,		SDL_SCANCODE_INTERNATIONAL5,		SDL_SCANCODE_UNKNOWN,	SDL_SCANCODE_INTERNATIONAL3,		SDL_SCANCODE_UNKNOWN,		SDL_SCANCODE_UNKNOWN	/* 7 */
+    SDLK_UNKNOWN,		SDLK_UNKNOWN,		SDLK_UNKNOWN,		SDLK_UNKNOWN,		SDLK_UNKNOWN,	SDLK_UNKNOWN,		SDLK_UNKNOWN,		SDLK_UNKNOWN,	/* 7 */
+    SDLK_UNKNOWN,		SDLK_UNKNOWN,		SDLK_UNKNOWN,		SDLK_UNKNOWN,		SDLK_UNKNOWN,	SDLK_UNKNOWN,		SDLK_UNKNOWN,		SDLK_UNKNOWN	/* 7 */
 };
 
-const SDL_Scancode scancode_rmapping_extended[][2] = {
-    {SDL_SCANCODE_KP_ENTER, SDL_SCANCODE_RETURN},
-    {SDL_SCANCODE_RALT, SDL_SCANCODE_LALT},
-    {SDL_SCANCODE_RCTRL, SDL_SCANCODE_LCTRL},
-    {SDL_SCANCODE_KP_DIVIDE, SDL_SCANCODE_SLASH},
-    //{SDL_SCANCODE_KP_PLUS, SDL_SCANCODE_CAPSLOCK}
+const SDLKey scancode_rmapping_extended[][2] = {
+    {SDLK_KP_ENTER, SDLK_RETURN},
+    {SDLK_RALT, SDLK_LALT},
+    {SDLK_RCTRL, SDLK_LCTRL},
+    {SDLK_KP_DIVIDE, SDLK_SLASH},
+    //{SDLK_KP_PLUS, SDLK_CAPSLOCK}
 };
 
-const SDL_Scancode scancode_rmapping_nonextended[][2] = {
-    {SDL_SCANCODE_KP_7, SDL_SCANCODE_HOME},
-    {SDL_SCANCODE_KP_8, SDL_SCANCODE_UP},
-    {SDL_SCANCODE_KP_9, SDL_SCANCODE_PAGEUP},
-    {SDL_SCANCODE_KP_4, SDL_SCANCODE_LEFT},
-    {SDL_SCANCODE_KP_6, SDL_SCANCODE_RIGHT},
-    {SDL_SCANCODE_KP_1, SDL_SCANCODE_END},
-    {SDL_SCANCODE_KP_2, SDL_SCANCODE_DOWN},
-    {SDL_SCANCODE_KP_3, SDL_SCANCODE_PAGEDOWN},
-    {SDL_SCANCODE_KP_0, SDL_SCANCODE_INSERT},
-    {SDL_SCANCODE_KP_PERIOD, SDL_SCANCODE_DELETE},
-    {SDL_SCANCODE_KP_MULTIPLY, SDL_SCANCODE_PRINTSCREEN}
+const SDLKey scancode_rmapping_nonextended[][2] = {
+    {SDLK_KP7, SDLK_HOME},
+    {SDLK_KP8, SDLK_UP},
+    {SDLK_KP9, SDLK_PAGEUP},
+    {SDLK_KP4, SDLK_LEFT},
+    {SDLK_KP6, SDLK_RIGHT},
+    {SDLK_KP1, SDLK_END},
+    {SDLK_KP2, SDLK_DOWN},
+    {SDLK_KP3, SDLK_PAGEDOWN},
+    {SDLK_KP0, SDLK_INSERT},
+    {SDLK_KP_PERIOD, SDLK_DELETE},
+    {SDLK_KP_MULTIPLY, SDLK_PRINT},
+    {SDLK_UP, SDLK_UP},
+    {SDLK_LEFT, SDLK_LEFT},
+    {SDLK_RIGHT, SDLK_RIGHT},
+    {SDLK_DOWN, SDLK_DOWN},
 };
 
 static void set_fullscreen(bool on, bool call_callback) {
-    if (fullscreen_state == on) {
+    /*if (fullscreen_state == on) {
         return;
     }
     fullscreen_state = on;
@@ -133,7 +141,7 @@ static void set_fullscreen(bool on, bool call_callback) {
 
     if (on_fullscreen_changed_callback != NULL && call_callback) {
         on_fullscreen_changed_callback(on);
-    }
+    }*/
 }
 
 int test_vsync(void) {
@@ -145,7 +153,7 @@ int test_vsync(void) {
     // This method will fail if the refresh rate is changed, which, in
     // combination with that we can't control the queue size (i.e. lag)
     // is a reason this generic SDL2 backend should only be used as last resort.
-    Uint32 start;
+    /*Uint32 start;
     Uint32 end;
 
     SDL_GL_SwapWindow(wnd);
@@ -176,7 +184,8 @@ int test_vsync(void) {
         SDL_GL_SetSwapInterval(4);
     } else {
         vsync_enabled = 0;
-    }
+    }*/
+    vsync_enabled = 1;
 }
 
 static void gfx_sdl_init(const char *game_name, bool start_in_fullscreen) {
@@ -185,10 +194,20 @@ static void gfx_sdl_init(const char *game_name, bool start_in_fullscreen) {
     char title[512];
     sprintf(title, "%s (%s)", game_name, GFX_API_NAME);
 
+	configScreenWidth = 320;
+	configScreenHeight = 240;
     window_width = configScreenWidth;
     window_height = configScreenHeight;
 #ifdef ENABLE_SOFTRAST
-    wnd = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+
+#ifdef CONVERT
+	sdl_screen = SDL_SetVideoMode(window_width, window_height, 16, SDL_HWSURFACE | SDL_DOUBLEBUF);
+#else
+	sdl_screen = SDL_SetVideoMode(window_width, window_height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
+#endif
+	//texture = SDL_CreateRGBSurface(SDL_HWSURFACE, window_width, window_height, 32, 0,0,0,0);
+
+    /*wnd = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
             window_width * 2, window_height * 2, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     renderer = SDL_CreateRenderer(wnd, -1, SDL_RENDERER_ACCELERATED);
 
@@ -196,7 +215,7 @@ static void gfx_sdl_init(const char *game_name, bool start_in_fullscreen) {
     SDL_RenderSetLogicalSize(renderer, window_width, window_height);
 
     texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, window_width, window_height);
-    if (start_in_fullscreen) set_fullscreen(true, false);
+    if (start_in_fullscreen) set_fullscreen(true, false);*/
 #else
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
@@ -221,7 +240,7 @@ static void gfx_sdl_init(const char *game_name, bool start_in_fullscreen) {
 
     f_time = SDL_GetTicks();
 
-    for (size_t i = 0; i < sizeof(windows_scancode_table) / sizeof(SDL_Scancode); i++) {
+    for (size_t i = 0; i < sizeof(windows_scancode_table) / sizeof(SDLKey); i++) {
         inverted_scancode_table[windows_scancode_table[i]] = i;
     }
 
@@ -298,18 +317,12 @@ static void gfx_sdl_handle_events(void) {
                     set_fullscreen(!fullscreen_state, true);
                     break;
                 }
-                gfx_sdl_onkeydown(event.key.keysym.scancode);
+                gfx_sdl_onkeydown(event.key.keysym.sym);
                 break;
             case SDL_KEYUP:
-                gfx_sdl_onkeyup(event.key.keysym.scancode);
+                gfx_sdl_onkeyup(event.key.keysym.sym);
                 break;
 #endif
-            case SDL_WINDOWEVENT:
-                if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
-                    window_width = event.window.data1;
-                    window_height = event.window.data2;
-                }
-                break;
             case SDL_QUIT:
                 game_exit();
                 break;
@@ -337,10 +350,13 @@ static void gfx_sdl_swap_buffers_begin(void) {
     }
 
 #ifdef ENABLE_SOFTRAST
-    SDL_UpdateTexture(texture, NULL, (const void *)gfx_output, 4 * configScreenWidth);
+	memcpy(sdl_screen->pixels, (const void *)gfx_output, (window_width*window_height)*sdl_screen->format->BytesPerPixel);
+	//SDL_BlitSurface(texture, NULL, sdl_screen, NULL);
+	SDL_Flip(sdl_screen);
+   /* SDL_UpdateTexture(texture, NULL, (const void *)gfx_output, 4 * configScreenWidth);
     SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, texture, NULL, NULL);
-    SDL_RenderPresent(renderer);
+    SDL_RenderPresent(renderer);*/
 #else
     SDL_GL_SwapWindow(wnd);
 #endif

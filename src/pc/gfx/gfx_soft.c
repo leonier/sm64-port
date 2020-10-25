@@ -117,7 +117,11 @@ struct ClipRect {
     int x1, y1; // bottom right
 };
 
+#ifdef CONVERT
+uint16_t *gfx_output;
+#else
 uint32_t *gfx_output;
+#endif
 
 // this is set in the drawing functions
 static draw_fn_t draw_fn;
@@ -406,34 +410,68 @@ static Color4 combine_tex_tex_rgba(const float z, const float *props) {
 }
 
 /* fragment plotters */
+#ifdef NOREVERSE
+#define Color32Reverse(x) (x)
+#else
+#ifdef CONVERT
+// R G B A
+// R G B
+static inline uint16_t Color32Reverse(uint32_t x)
+{
+    uint8_t red   = ((x >> 0)  & 0xFF);
+    uint8_t green = ((x >> 8)  & 0xFF);
+    uint8_t blue  = ((x >> 16)  & 0xFF);
+
+    uint16_t b = (blue >> 3) & 0x1f;
+    uint16_t g = ((green >> 2) & 0x3f) << 5;
+    uint16_t r = ((red >> 3) & 0x1f) << 11;
+
+    return (uint16_t) (r | g | b);
+	/*extern SDL_Surface* sdl_screen;
+	uint8_t a		= ((x >> 24) & 0xFF);
+    uint8_t red		= ((x >> 0)  & 0xFF);
+    uint8_t green	= ((x >> 8 ) & 0xFF);
+    uint8_t blue	= ((x >> 16) & 0xFF);
+    red = red >> 3;
+    green = green >> 2;
+    blue = blue >> 3;
+	return SDL_MapRGBA(sdl_screen->format, red, green, blue, a);*/
+}
+#else
+static inline uint32_t Color32Reverse(uint32_t x)
+{
+    return __builtin_bswap32(x) >> 8 | 0xff000000;
+}
+#endif
+#endif
 
 static void draw_pixel(const int idx, UNUSED const uint16_t z, Color4 src) {
-    gfx_output[idx] = src.c;
+    gfx_output[idx] = Color32Reverse(src.c);
 }
 
 static void draw_pixel_zwrite(const int idx, const uint16_t z, Color4 src) {
-    gfx_output[idx] = src.c;
+    gfx_output[idx] = Color32Reverse(src.c);
     z_buffer[idx] = z;
 }
 
 static void draw_pixel_blend(const int idx, UNUSED const uint16_t z, Color4 src) {
     const uint8_t a = src.a;
     const uint8_t ia = 255 - a;
-    const Color4 dst = (Color4) { .c = gfx_output[idx] };
+    const Color4 dst = (Color4) { .c = Color32Reverse(gfx_output[idx]) };
     src.r = mult_tab[src.r][a] + mult_tab[dst.r][ia];
     src.g = mult_tab[src.g][a] + mult_tab[dst.g][ia];
     src.b = mult_tab[src.b][a] + mult_tab[dst.b][ia];
-    gfx_output[idx] = src.c;
+    gfx_output[idx] = Color32Reverse(src.c);
 }
 
 static void draw_pixel_blend_zwrite(const int idx, const uint16_t z, Color4 src) {
     const uint8_t a = src.a;
     const uint8_t ia = 255 - a;
-    const Color4 dst = (Color4) { .c = gfx_output[idx] };
+    const Color4 dst = (Color4) { .c = Color32Reverse(gfx_output[idx]) };
     src.r = mult_tab[src.r][a] + mult_tab[dst.r][ia];
     src.g = mult_tab[src.g][a] + mult_tab[dst.g][ia];
     src.b = mult_tab[src.b][a] + mult_tab[dst.b][ia];
-    gfx_output[idx] = src.c;
+    gfx_output[idx] = Color32Reverse(src.c);
     z_buffer[idx] = z;
 }
 
@@ -441,11 +479,11 @@ static void draw_pixel_blend_edge(const int idx, UNUSED const uint16_t z, Color4
     if (src.a > 0x80) {
         const uint8_t a = src.a;
         const uint8_t ia = 255 - a;
-        const Color4 dst = (Color4) { .c = gfx_output[idx] };
+        const Color4 dst = (Color4) { .c = Color32Reverse(gfx_output[idx]) };
         src.r = mult_tab[src.r][a] + mult_tab[dst.r][ia];
         src.g = mult_tab[src.g][a] + mult_tab[dst.g][ia];
         src.b = mult_tab[src.b][a] + mult_tab[dst.b][ia];
-        gfx_output[idx] = src.c;
+        gfx_output[idx] = Color32Reverse(src.c);
     }
 }
 
@@ -453,11 +491,11 @@ static void draw_pixel_blend_edge_zwrite(const int idx, const uint16_t z, Color4
     if (src.a > 0x80) {
         const uint8_t a = src.a;
         const uint8_t ia = 255 - a;
-        const Color4 dst = (Color4) { .c = gfx_output[idx] };
+        const Color4 dst = (Color4) { .c = Color32Reverse(gfx_output[idx]) };
         src.r = mult_tab[src.r][a] + mult_tab[dst.r][ia];
         src.g = mult_tab[src.g][a] + mult_tab[dst.g][ia];
         src.b = mult_tab[src.b][a] + mult_tab[dst.b][ia];
-        gfx_output[idx] = src.c;
+        gfx_output[idx] = Color32Reverse(src.c);
         z_buffer[idx] = z;
     }
 }
@@ -966,7 +1004,11 @@ static void gfx_soft_set_resolution(const int width, const int height) {
         abort();
     }
 
+#ifdef CONVERT
+    gfx_output = calloc(scr_width * scr_height, sizeof(uint16_t));
+#else
     gfx_output = calloc(scr_width * scr_height, sizeof(uint32_t));
+#endif
     if (!gfx_output) {
         printf("gfx_soft: could not alloc color buffer for %dx%d\n", scr_width, scr_height);
         abort();

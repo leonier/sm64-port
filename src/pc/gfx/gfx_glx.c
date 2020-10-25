@@ -1,6 +1,7 @@
 #include "../compat.h"
 
 #if defined(__linux__) || defined(__BSD__)
+#ifndef ENABLE_SOFTRAST
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -610,4 +611,5 @@ struct GfxWindowManagerAPI gfx_glx = {
     gfx_glx_get_time
 };
 
+#endif
 #endif

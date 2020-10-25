@@ -22,7 +22,7 @@ TARGET_N64 ?= 0
 # Build for Emscripten/WebGL
 TARGET_WEB ?= 0
 # Build for DOS
-TARGET_DOS ?= 1
+TARGET_DOS ?= 0
 # Compiler to use (ido or gcc)
 COMPILER ?= ido
 
@@ -35,7 +35,7 @@ ENABLE_OPENGL ?= 0
 # Legacy OGL
 ENABLE_OPENGL_LEGACY ?= 0
 # Software rasterizer
-ENABLE_SOFTRAST ?= 0
+ENABLE_SOFTRAST ?= 1
 # Pick GL backend for DOS: osmesa, dmesa
 DOS_GL := osmesa
 
@@ -542,12 +542,12 @@ endif
 
 ifneq ($(ENABLE_OPENGL)$(ENABLE_OPENGL_LEGACY),00)
   ifeq ($(TARGET_WINDOWS),1)
-    GFX_CFLAGS  += $(shell sdl2-config --cflags) -DGLEW_STATIC
-    GFX_LDFLAGS += $(shell sdl2-config --libs) -lglew32 -lopengl32 -lwinmm -limm32 -lversion -loleaut32 -lsetupapi
+    GFX_CFLAGS  += $(shell sdl-config --cflags) -DGLEW_STATIC
+    GFX_LDFLAGS += $(shell sdl-config --libs) -lglew32 -lopengl32 -lwinmm -limm32 -lversion -loleaut32 -lsetupapi
   endif
   ifeq ($(TARGET_LINUX),1)
-    GFX_CFLAGS  += $(shell sdl2-config --cflags)
-    GFX_LDFLAGS += -lGL $(shell sdl2-config --libs) -lX11 -lXrandr
+    GFX_CFLAGS  += $(shell sdl-config --cflags)
+    GFX_LDFLAGS += -lGL $(shell sdl-config --libs) -lX11 -lXrandr
   endif
   ifeq ($(TARGET_WEB),1)
     GFX_CFLAGS  += -s USE_SDL=2
@@ -566,12 +566,12 @@ ifneq ($(ENABLE_OPENGL)$(ENABLE_OPENGL_LEGACY),00)
   endif
 else ifeq ($(ENABLE_SOFTRAST),1)
   ifeq ($(TARGET_WINDOWS),1)
-    GFX_CFLAGS  += $(shell sdl2-config --cflags)
-    GFX_LDFLAGS += $(shell sdl2-config --libs)
+    GFX_CFLAGS  += $(shell sdl-config --cflags)
+    GFX_LDFLAGS += $(shell sdl-config --libs)
   endif
   ifeq ($(TARGET_LINUX),1)
-    GFX_CFLAGS  += $(shell sdl2-config --cflags)
-    GFX_LDFLAGS += $(shell sdl2-config --libs) -lX11 -lXrandr
+    GFX_CFLAGS  += $(shell sdl-config --cflags)
+    GFX_LDFLAGS += $(shell sdl-config --libs)
   endif
   ifeq ($(TARGET_WEB),1)
     GFX_CFLAGS  += -s USE_SDL=2

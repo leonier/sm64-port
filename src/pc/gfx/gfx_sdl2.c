@@ -69,6 +69,10 @@ const int frame_time = 1000 / FRAMERATE;
 static int f_frames = 0;
 static double f_time = 0.0;
 
+#if defined(DIRECT_SDL) && defined(SDL_SURFACE)
+	uint32_t *gfx_output;
+#endif
+
 
 const SDLKey windows_scancode_table[] =
 {
@@ -126,7 +130,8 @@ const SDLKey scancode_rmapping_nonextended[][2] = {
 };
 
 static void set_fullscreen(bool on, bool call_callback) {
-    /*if (fullscreen_state == on) {
+	#ifndef ENABLE_SOFTRAST
+    if (fullscreen_state == on) {
         return;
     }
     fullscreen_state = on;
@@ -145,7 +150,8 @@ static void set_fullscreen(bool on, bool call_callback) {
 
     if (on_fullscreen_changed_callback != NULL && call_callback) {
         on_fullscreen_changed_callback(on);
-    }*/
+    }
+    #endif
 }
 
 int test_vsync(void) {
@@ -157,7 +163,8 @@ int test_vsync(void) {
     // This method will fail if the refresh rate is changed, which, in
     // combination with that we can't control the queue size (i.e. lag)
     // is a reason this generic SDL2 backend should only be used as last resort.
-    /*Uint32 start;
+    #ifndef ENABLE_SOFTRAST
+    Uint32 start;
     Uint32 end;
 
     SDL_GL_SwapWindow(wnd);
@@ -188,8 +195,10 @@ int test_vsync(void) {
         SDL_GL_SetSwapInterval(4);
     } else {
         vsync_enabled = 0;
-    }*/
+    }
     vsync_enabled = 1;
+    #endif
+    vsync_enabled = 0;
 }
 
 static void gfx_sdl_init(const char *game_name, bool start_in_fullscreen) {
@@ -202,27 +211,20 @@ static void gfx_sdl_init(const char *game_name, bool start_in_fullscreen) {
     window_height = configScreenHeight;
 #ifdef ENABLE_SOFTRAST
 
+	SDL_ShowCursor(0);
 #ifdef CONVERT
-	sdl_screen = SDL_SetVideoMode(window_width, window_height, 16, SDL_HWSURFACE | SDL_DOUBLEBUF);
+	sdl_screen = SDL_SetVideoMode(window_width, window_height, 16, SDL_HWSURFACE | SDL_TRIPLEBUF);
 #else
 #ifdef DIRECT_SDL
-	sdl_screen = SDL_SetVideoMode(window_width, window_height, 0, SDL_HWSURFACE | SDL_TRIPLEBUF);
+	sdl_screen = SDL_SetVideoMode(window_width, window_height, 32, SDL_HWSURFACE | SDL_TRIPLEBUF);
 #else
 	texture = SDL_SetVideoMode(window_width, window_height, 16, SDL_HWSURFACE | SDL_TRIPLEBUF);
 	sdl_screen = SDL_CreateRGBSurface(SDL_HWSURFACE, window_width, window_height, 32, 0,0,0,0);
 #endif
 #endif
-	//texture = SDL_CreateRGBSurface(SDL_HWSURFACE, window_width, window_height, 32, 0,0,0,0);
-
-    /*wnd = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-            window_width * 2, window_height * 2, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
-    renderer = SDL_CreateRenderer(wnd, -1, SDL_RENDERER_ACCELERATED);
-
-    SDL_RenderSetIntegerScale(renderer, SDL_TRUE);
-    SDL_RenderSetLogicalSize(renderer, window_width, window_height);
-
-    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, window_width, window_height);
-    if (start_in_fullscreen) set_fullscreen(true, false);*/
+	#ifdef SDL_SURFACE
+	gfx_output = sdl_screen->pixels;
+	#endif
 #else
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
@@ -301,7 +303,7 @@ static int translate_scancode(int scancode) {
 
 static void gfx_sdl_onkeydown(int scancode) {
     int key = translate_scancode(scancode);
-    printf("key %d\n", key);
+
     if (on_key_down_callback != NULL) {
         on_key_down_callback(key);
     }
@@ -352,32 +354,52 @@ static void sync_framerate_with_timer(void) {
     last_time += frame_time;
 }
 
+
+static uint16_t rgb888Torgb565(uint32_t s)
+{
+   /* uint8_t red   = ((x >> 0)  & 0xFF);
+    uint8_t green = ((x >> 8)  & 0xFF);
+    uint8_t blue  = ((x >> 16)  & 0xFF);
+    uint16_t b = (blue >> 3) & 0x1f;
+    uint16_t g = ((green >> 2) & 0x3f) << 5;
+    uint16_t r = ((red >> 3) & 0x1f) << 11;
+    return (uint16_t) (r | g | b);*/
+	//unsigned alpha = s >> 27; /* downscale alpha to 5 bits */
+	//if (alpha == (SDL_ALPHA_OPAQUE >> 3)) return (uint16_t) ((s >> 8 & 0xf800) + (s >> 5 & 0x7e0) + (s >> 3 & 0x1f));
+	//return s = ((s & 0xfc00) << 11) + (s >> 8 & 0xf800) + (s >> 3 & 0x1f);
+	return (uint16_t) ((s >> 8 & 0xf800) + (s >> 5 & 0x7e0) + (s >> 3 & 0x1f));
+}
+
 static void gfx_sdl_swap_buffers_begin(void) {
     if (!vsync_enabled) {
         sync_framerate_with_timer();
     }
-
 #ifdef ENABLE_SOFTRAST
 #ifdef DIRECT_SDL
-	if (SDL_LockSurface(sdl_screen) == 0)
-	{
-		memmove(sdl_screen->pixels, (const void *)gfx_output, (window_width*window_height)*sdl_screen->format->BytesPerPixel);
-		SDL_UnlockSurface(sdl_screen);
-	}
+
+#ifndef SDL_SURFACE
+	sdl_screen->pixels = gfx_output;
+#endif
 	SDL_Flip(sdl_screen);
 #else
-	if (SDL_LockSurface(sdl_screen) == 0)
+
+#ifndef SDL_SURFACE
+	/* Not working currently */
+	uint16_t* output;
+	output = texture->pixels;
+	if (SDL_LockSurface(texture) == 0)
 	{
-		memmove(sdl_screen->pixels, (const void *)gfx_output, (window_width*window_height)*sdl_screen->format->BytesPerPixel);
-		SDL_UnlockSurface(sdl_screen);
+		for (uint32_t i = 0; i < (window_width * window_height); i += 1) 
+		{
+			*output++ = rgb888Torgb565(gfx_output[i]);
+		}
+		SDL_UnlockSurface(texture);
 	}
+#else
 	SDL_BlitSurface(sdl_screen, NULL, texture, NULL);
+#endif
 	SDL_Flip(texture);
 #endif
-   /* SDL_UpdateTexture(texture, NULL, (const void *)gfx_output, 4 * configScreenWidth);
-    SDL_RenderClear(renderer);
-    SDL_RenderCopy(renderer, texture, NULL, NULL);
-    SDL_RenderPresent(renderer);*/
 #else
     SDL_GL_SwapWindow(wnd);
 #endif

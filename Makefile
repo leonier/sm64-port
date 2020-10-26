@@ -41,7 +41,9 @@ NOWUP = NOWUP
 
 DEBUG = 0
 
-TARGET_RS97 ?= 1
+TARGET_RS97 ?= 0
+TARGET_OD ?= 1
+
 # Pick GL backend for DOS: osmesa, dmesa
 DOS_GL := osmesa
 
@@ -515,20 +517,28 @@ ifeq ($(TARGET_RS97),1)
   CC := $(OD_TOOLCHAIN)bin/mipsel-linux-gcc
   CXX := $(OD_TOOLCHAIN)bin/mipsel-linux-g++
   LD := $(OD_TOOLCHAIN)bin/mipsel-linux-gcc
-  MARCH := -march=mips32 -mtune=mips32  -Ofast -fdata-sections -ffunction-sections -mno-fp-exceptions -mno-check-zero-division -mframe-header-opt -fsingle-precision-constant -fno-common -mxgot -mips32 -mno-mips16 -fno-PIC -mno-abicalls -flto
+  MARCH := -mno-memcpy -march=mips32 -mtune=mips32 -Ofast -fdata-sections -ffunction-sections -mno-fp-exceptions -mno-check-zero-division -mframe-header-opt -fsingle-precision-constant -fno-common -mxgot -mips32 -mno-mips16 -fno-PIC -mno-abicalls -flto -fno-builtin -DRS97
+endif
+ifeq ($(TARGET_RS90),1)
+  OD_TOOLCHAIN ?= /opt/rs90-toolchain/
+  CC := $(OD_TOOLCHAIN)bin/mipsel-linux-gcc
+  CXX := $(OD_TOOLCHAIN)bin/mipsel-linux-g++
+  LD := $(OD_TOOLCHAIN)bin/mipsel-linux-gcc
+  MARCH := -mno-memcpy -march=mips32 -mtune=mips32 -Os -mplt -mno-shared -fdata-sections -ffunction-sections -mno-fp-exceptions -mno-check-zero-division -mframe-header-opt -fsingle-precision-constant -fno-common -mxgot -mips32 -mno-mips16 -flto -fno-builtin
 endif
 ifeq ($(TARGET_BITTBOY),1)
   OD_TOOLCHAIN ?= /opt/bittboy-toolchain/
   CC := $(OD_TOOLCHAIN)bin/arm-linux-gcc
   CXX := $(OD_TOOLCHAIN)bin/arm-linux-g++
   LD := $(OD_TOOLCHAIN)bin/arm-linux-gcc
+  MARCH := -march=armv5te -mtune=arm926ej-s -O2 -fno-PIC -fdata-sections -ffunction-sections -fsingle-precision-constant -fno-common -flto -fno-builtin
 endif
 ifeq ($(TARGET_OD),1)
   OD_TOOLCHAIN ?= /opt/gcw0-toolchain/
   CC := $(OD_TOOLCHAIN)bin/mipsel-linux-gcc
   CXX := $(OD_TOOLCHAIN)bin/mipsel-linux-g++
   LD := $(OD_TOOLCHAIN)bin/mipsel-linux-gcc
-  MARCH := -march=mips32r2 -mtune=mips32r2
+  MARCH := -march=mips32r2 -mtune=mips32r2 -Ofast -fdata-sections -ffunction-sections -mno-fp-exceptions -mno-check-zero-division -mframe-header-opt -fsingle-precision-constant -fno-common -mplt -mno-shared -fno-PIC -flto -fno-builtin -mno-memcpy -fsection-anchors -fdelete-dead-exceptions
 endif
   PLATFORM_CFLAGS  := -DTARGET_LINUX
   PLATFORM_LDFLAGS := -lm -lpthread -no-pie -flto
@@ -597,13 +607,16 @@ else ifeq ($(ENABLE_SOFTRAST),1)
   ifeq ($(TARGET_LINUX),1)
 	ifeq ($(TARGET_RS97),1)
 	  GFX_CFLAGS  += $(shell /opt/rs97-toolchain/mipsel-buildroot-linux-musl/sysroot/usr/bin/sdl-config --cflags)
-	  GFX_LDFLAGS += $(shell /opt/rs97-toolchain/mipsel-buildroot-linux-musl/sysroot/usr/bin/sdl-config --libs)
+	  GFX_LDFLAGS += $(shell /opt/rs97-toolchain/mipsel-buildroot-linux-musl/sysroot/usr/bin/sdl-config --libs) -flto -Wl,--as-needed -Wl,--gc-sections -Wl,-O1,--sort-common -s
+	else ifeq ($(TARGET_RS90),1)
+	  GFX_CFLAGS  += $(shell /opt/rs90-toolchain/mipsel-rs90-linux-musl/sysroot/usr/bin/sdl-config --cflags)
+	  GFX_LDFLAGS += $(shell /opt/rs90-toolchain/mipsel-rs90-linux-musl/sysroot/usr/bin/sdl-config --libs) -flto -Wl,--as-needed -Wl,--gc-sections -Wl,-O1,--sort-common -s
 	else ifeq ($(TARGET_BITTBOY),1)
 	  GFX_CFLAGS  += $(shell /opt/bittboy-toolchain/arm-buildroot-linux-musleabi/sysroot/usr/bin/sdl-config --cflags)
-	  GFX_LDFLAGS += $(shell /opt/bittboy-toolchain/arm-buildroot-linux-musleabi/sysroot/usr/bin/sdl-config --libs)
+	  GFX_LDFLAGS += $(shell /opt/bittboy-toolchain/arm-buildroot-linux-musleabi/sysroot/usr/bin/sdl-config --libs)  -flto -Wl,--as-needed -Wl,--gc-sections -Wl,-O1,--sort-common -s
 	else ifeq ($(TARGET_OD),1)
 	  GFX_CFLAGS  += $(shell /opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/bin/sdl-config --cflags)
-	  GFX_LDFLAGS += $(shell /opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/bin/sdl-config --libs)
+	  GFX_LDFLAGS += $(shell /opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/bin/sdl-config --libs) -flto -Wl,--as-needed -Wl,--gc-sections -Wl,-O1,--sort-common -s -no-pie
 	else
 	  GFX_CFLAGS  += $(shell sdl-config --cflags)
 	  GFX_LDFLAGS += $(shell sdl-config --libs)
@@ -615,7 +628,7 @@ else ifeq ($(ENABLE_SOFTRAST),1)
   endif
 endif
 
-GFX_CFLAGS += -DWIDESCREEN
+#GFX_CFLAGS += -DWIDESCREEN
 
 ifeq ($(TARGET_DOS),0)
 #MARCH := -march=native

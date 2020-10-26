@@ -117,10 +117,13 @@ struct ClipRect {
     int x1, y1; // bottom right
 };
 
-#ifdef CONVERT
-uint16_t *gfx_output;
-#else
-uint32_t *gfx_output;
+
+#if !(defined(DIRECT_SDL) && defined(SDL_SURFACE))
+	#ifdef CONVERT
+	uint16_t *gfx_output;
+	#else
+	uint32_t *gfx_output;
+	#endif
 #endif
 
 // this is set in the drawing functions
@@ -425,7 +428,6 @@ static inline uint16_t Color32Reverse(uint32_t x)
     uint16_t g = ((green >> 2) & 0x3f) << 5;
     uint16_t r = ((red >> 3) & 0x1f) << 11;
     return (uint16_t) (r | g | b);
-    
    /* uint32_t s = __builtin_bswap32(x) >> 8 | 0xff000000;*/
 	//unsigned alpha = s >> 27; /* downscale alpha to 5 bits */
 	/* FIXME: Here we special-case opaque alpha since the
@@ -1002,8 +1004,9 @@ static void gfx_soft_prepare_tables(void) {
 
 static void gfx_soft_set_resolution(const int width, const int height) {
     if (z_buffer) free(z_buffer);
+#ifndef SDL_SURFACE
     if (gfx_output) free(gfx_output);
-
+#endif
     scr_width = width;
     scr_height = height;
     scr_size = scr_width * scr_height;
@@ -1014,6 +1017,7 @@ static void gfx_soft_set_resolution(const int width, const int height) {
         abort();
     }
 
+#ifndef SDL_SURFACE
 #ifdef CONVERT
     gfx_output = calloc(scr_width * scr_height, sizeof(uint16_t));
 #else
@@ -1023,6 +1027,7 @@ static void gfx_soft_set_resolution(const int width, const int height) {
         printf("gfx_soft: could not alloc color buffer for %dx%d\n", scr_width, scr_height);
         abort();
     }
+#endif
 
     depth_clear();
 }

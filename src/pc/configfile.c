@@ -35,8 +35,13 @@ bool configDrawSky               = true;
 bool configFiltering             = false;
 bool configEnableSound           = true;
 bool configEnableFog             = false;
+#ifdef RS97
 unsigned int configScreenWidth   = 80;
 unsigned int configScreenHeight  = 60;
+#else
+unsigned int configScreenWidth   = 320;
+unsigned int configScreenHeight  = 240;
+#endif
 unsigned int configFrameskip     = 30;
 // Keyboard mappings (scancode values)
 #ifdef TARGET_DOS

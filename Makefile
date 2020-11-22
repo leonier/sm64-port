@@ -41,8 +41,8 @@ NOWUP = NOWUP
 
 DEBUG = 0
 
-TARGET_RS97 ?= 0
-TARGET_OD ?= 1
+TARGET_RS97 ?= 1
+TARGET_OD ?= 0
 
 # Pick GL backend for DOS: osmesa, dmesa
 DOS_GL := osmesa

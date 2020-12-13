@@ -38,6 +38,9 @@ bool configEnableFog             = false;
 #ifdef RS97
 unsigned int configScreenWidth   = 80;
 unsigned int configScreenHeight  = 60;
+#elif defined(FUNKEY)
+unsigned int configScreenWidth   = 210;
+unsigned int configScreenHeight  = 160;
 #else
 unsigned int configScreenWidth   = 320;
 unsigned int configScreenHeight  = 240;

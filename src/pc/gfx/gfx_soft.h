@@ -3,7 +3,10 @@
 
 #include "gfx_rendering_api.h"
 
-#ifdef RS97
+// For some strange reasons, trying to use SDL to convert the surface
+// on the Funkey results in a bus error and crash...
+
+#if defined(RS97)
 //#define CONVERT
 //#define DIRECT_SDL
 #define SDL_SURFACE

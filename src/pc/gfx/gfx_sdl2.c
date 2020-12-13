@@ -28,7 +28,7 @@
 #include "gfx_window_manager_api.h"
 #include "gfx_screen_config.h"
 
-#ifdef VERSION_EU
+#if defined(VERSION_EU)
 # define FRAMERATE 25
 #else
 # define FRAMERATE 30
@@ -206,7 +206,7 @@ static void gfx_sdl_init(const char *game_name, bool start_in_fullscreen) {
 
     char title[512];
     sprintf(title, "%s (%s)", game_name, GFX_API_NAME);
-
+	
     window_width = configScreenWidth;
     window_height = configScreenHeight;
 #ifdef ENABLE_SOFTRAST
@@ -218,7 +218,7 @@ static void gfx_sdl_init(const char *game_name, bool start_in_fullscreen) {
 #ifdef DIRECT_SDL
 	sdl_screen = SDL_SetVideoMode(window_width, window_height, 32, SDL_HWSURFACE | SDL_TRIPLEBUF);
 #else
-	texture = SDL_SetVideoMode(window_width, window_height, 16, SDL_HWSURFACE | SDL_TRIPLEBUF);
+	texture = SDL_SetVideoMode(window_width, window_height, 32, SDL_HWSURFACE | SDL_TRIPLEBUF);
 	sdl_screen = SDL_CreateRGBSurface(SDL_HWSURFACE, window_width, window_height, 32, 0,0,0,0);
 #endif
 #endif
@@ -357,16 +357,6 @@ static void sync_framerate_with_timer(void) {
 
 static uint16_t rgb888Torgb565(uint32_t s)
 {
-   /* uint8_t red   = ((x >> 0)  & 0xFF);
-    uint8_t green = ((x >> 8)  & 0xFF);
-    uint8_t blue  = ((x >> 16)  & 0xFF);
-    uint16_t b = (blue >> 3) & 0x1f;
-    uint16_t g = ((green >> 2) & 0x3f) << 5;
-    uint16_t r = ((red >> 3) & 0x1f) << 11;
-    return (uint16_t) (r | g | b);*/
-	//unsigned alpha = s >> 27; /* downscale alpha to 5 bits */
-	//if (alpha == (SDL_ALPHA_OPAQUE >> 3)) return (uint16_t) ((s >> 8 & 0xf800) + (s >> 5 & 0x7e0) + (s >> 3 & 0x1f));
-	//return s = ((s & 0xfc00) << 11) + (s >> 8 & 0xf800) + (s >> 3 & 0x1f);
 	return (uint16_t) ((s >> 8 & 0xf800) + (s >> 5 & 0x7e0) + (s >> 3 & 0x1f));
 }
 
@@ -384,17 +374,7 @@ static void gfx_sdl_swap_buffers_begin(void) {
 #else
 
 #ifndef SDL_SURFACE
-	/* Not working currently */
-	uint16_t* output;
-	output = texture->pixels;
-	if (SDL_LockSurface(texture) == 0)
-	{
-		for (uint32_t i = 0; i < (window_width * window_height); i += 1) 
-		{
-			*output++ = rgb888Torgb565(gfx_output[i]);
-		}
-		SDL_UnlockSurface(texture);
-	}
+	SDL_BlitSurface(sdl_screen, NULL, texture, NULL);
 #else
 	SDL_BlitSurface(sdl_screen, NULL, texture, NULL);
 #endif

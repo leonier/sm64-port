@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=sm64-port-jp
+Comment=SM64 port by gameblabla based on MSDOS port, JP ver by Leonier
+Exec=sm64.jp.f3dex2e
+Terminal=false
+Type=Application
+StartupNotify=true
+Icon=icon
+Categories=games;
